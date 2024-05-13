@@ -1,0 +1,26 @@
+{
+  "name": "@imndzy/axino",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Tiny node.js MVC framework",
+  "main": "core/server.js",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.9.7",
+    "sequelize": "^6.37.3",
+    "yargs": "^17.7.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/imnd/axino.git"
+  },
+  "author": "imndsu@gmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/imnd/axino/issues"
+  },
+  "homepage": "https://github.com/imnd/axino#readme"
+}
