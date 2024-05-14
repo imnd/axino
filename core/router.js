@@ -58,7 +58,6 @@ const parseUrl = (request, routes) => {
   let url = request.url.replace(/^\/+/g, '');
   const requestUrlArr = url.split('/');
   url = requestUrlArr[0];
-  const urlParam = requestUrlArr[1] ?? null;
 
   const method = request.method.toLowerCase();
   const methodRoutes = routes[method];
@@ -71,10 +70,11 @@ const parseUrl = (request, routes) => {
   }
 
   let filter;
+  const urlParam = requestUrlArr[1] ?? null;
   if (urlParam) {
     filter = item => (item.param !== null || item.action !== null);
   } else {
-    filter = item => item.param === null;
+    filter = item => (item.param === null || item.param === undefined);
   }
 
   const route = urlRoutes.filter(filter)[0] ?? null;

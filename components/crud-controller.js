@@ -1,4 +1,4 @@
-class CrudMixin {
+export default class CrudController {
   model
 
   constructor (model) {
@@ -41,15 +41,3 @@ class CrudMixin {
     return await this.model.findAll();
   }
 }
-
-const mix = (controller, model)=> {
-  const cm = new CrudMixin(model);
-
-  controller.create = async data => cm.create(data);
-  controller.show = async id => cm.show(id);
-  controller.update = async (id, data) => cm.update(id, data);
-  controller.destroy = async id => cm.destroy(id);
-  controller.index = async id => cm.index(id);
-}
-
-export default mix;

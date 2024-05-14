@@ -7,28 +7,32 @@ import RequestHandler from "./request-handler.js";
 import { parseRoutes } from "./router.js";
 import Yargs from "yargs";
 
-let parsedRoutes;
-const go = routes => {
-  parsedRoutes = parseRoutes(routes);
-  const port = Yargs.port ?? process.env.PORT;
-  const hostname = process.env.HOSTNAME;
-  createServer(async (req, res) => {
+import routes from "./../../../../routes.js";
+const parsedRoutes = parseRoutes(routes);
+
+export default {
+  go: () => {
+    const port = Yargs.port ?? process.env.PORT;
+    const hostname = process.env.HOSTNAME;
+    createServer(async (req, res) => {
       await (new RequestHandler(req, res, parsedRoutes)).handle();
     })
-    .listen(port, hostname, () => {
-      console.log(`Server running at http://${hostname}:${port}`);
-    });
+      .listen(port, hostname, () => {
+        console.log(`Server running at http://${hostname}:${port}`);
+      })
+    ;
+  },
+  // bind callbacks to methods
+  get: (url, callback) => {
+    parsedRoutes.get[url] ??= [];
+    parsedRoutes.get[url].push({ callback });
+  },
+  post: (url, callback) => {
+    parsedRoutes.post[url] ??= [];
+    parsedRoutes.post[url].push({ callback });
+  },
+  delete: (url, callback) => {
+    parsedRoutes.delete[url] ??= [];
+    parsedRoutes.delete[url].push({ callback });
+  }
 }
-
-// bind callbacks to methods
-const GET = (url, callback) => {
-  parsedRoutes.get.push({ url, callback });
-};
-const POST = (url, callback) => {
-  parsedRoutes.post.push({ url, callback });
-};
-const DELETE = (url, callback) => {
-  parsedRoutes.get.push({ url, callback });
-};
-
-export { go, GET, POST, DELETE }

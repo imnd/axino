@@ -1,4 +1,6 @@
-// load config from .env
+/**
+ * load config from .env
+ */
 import { config } from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";

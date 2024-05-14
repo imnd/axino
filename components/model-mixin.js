@@ -1,3 +1,5 @@
+import { Http404Error } from "../core/http-error.js";
+
 class ModelMixin {
   model
 
@@ -10,16 +12,16 @@ class ModelMixin {
     if (model) {
       return model;
     } else {
-      throw new Error('Not found')
+      this.#notFound();
     }
   }
 
   async updateOrFail (id, data) {
-    const model = await this.model.findByPk(id);
+    const model = await this.model.findByPk(id).then();
     if (model) {
       await model.update(data);
     } else {
-      throw new Error('Not found')
+      this.#notFound();
     }
   }
 
@@ -28,8 +30,12 @@ class ModelMixin {
     if (model) {
       await model.destroy();
     } else {
-      throw new Error('Not found')
+      this.#notFound();
     }
+  }
+
+  #notFound () {
+    throw new Http404Error();
   }
 }
 
