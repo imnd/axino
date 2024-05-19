@@ -8,36 +8,36 @@ export default class CrudController {
   /**
    * Create item
    */
-  async create(data) {
-    return await this.model.create(data);
+  create(data) {
+    return this.model.create(data);
   }
 
   /**
    * Get item by ID
    */
-  async show(id) {
-    return await this.model.showOrFail(id);
+  show(id) {
+    return this.model.showOrFail(id);
   }
 
   /**
    * Update item by ID
    */
-  async update(id, data) {
-    await this.model.updateOrFail(id, data);
-    return await this.model.findByPk(id);
+  update(id, data) {
+    this.model.updateOrFail(id, data);
+    return this.model.findByPk(id);
   }
 
   /**
    * Delete item
    */
-  async destroy(id) {
-    await this.model.destroyOrFail(id);
+  destroy(id) {
+    this.model.destroyOrFail(id);
   }
 
   /**
    * Get all items
    */
-  async index() {
-    return await this.model.findAll();
+  index() {
+    return this.model.findAll();
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@imndzy/axino",
   "type": "module",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Tiny node.js MVC framework",
   "main": "core/server.js",
   "dependencies": {
