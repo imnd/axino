@@ -7,7 +7,8 @@ import RequestHandler from "./request-handler.js";
 import { parseRoutes } from "./router.js";
 import Yargs from "yargs";
 
-import routes from "./../../../../routes.js";
+// import routes from "./../../../../routes.js";
+import routes from "./../../bookkeep-axino/routes.js";
 const parsedRoutes = parseRoutes(routes);
 
 export default {

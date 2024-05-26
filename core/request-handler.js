@@ -1,20 +1,22 @@
 import { parseUrl } from "./router.js";
 
-const STATUS_CODE_OK = 200;
-const STATUS_CODE_CREATED = 201;
-const STATUS_CODE_NO_CONTENT = 204;
-const STATUS_CODE_NOT_FOUND = 404;
-const STATUS_CODE_ERROR = 500;
+const STATUS_CODES = {
+  OK: 200,
+  CREATED: 201,
+  NO_CONTENT: 204,
+  NOT_FOUND: 404,
+  ERROR: 500,
+};
 
 const SUCCESS_STATUS_CODES = {
-  GET: STATUS_CODE_OK,
-  POST: STATUS_CODE_CREATED,
-  PUT: STATUS_CODE_OK,
-  DELETE: STATUS_CODE_NO_CONTENT,
+  GET: STATUS_CODES.OK,
+  POST: STATUS_CODES.CREATED,
+  PUT: STATUS_CODES.OK,
+  DELETE: STATUS_CODES.NO_CONTENT,
 };
 
 const ERROR_MESSAGES = {
-  [STATUS_CODE_NOT_FOUND]: "Not found"
+  [STATUS_CODES.NOT_FOUND]: "Not found"
 };
 
 export default class RequestHandler {
@@ -82,35 +84,43 @@ export default class RequestHandler {
    * finalize request
    */
   async #getResponse (postData) {
-      const urlHandler = parseUrl(this.#request, this.#routes);
-      if (urlHandler === null) {
-        this.#error(STATUS_CODE_NOT_FOUND);
-        return;
-      }
+    const urlHandler = parseUrl(this.#request, this.#routes);
+    if (urlHandler === null) {
+      return this.#error(STATUS_CODES.NOT_FOUND);
+    }
 
-      const { callback, param } = urlHandler;
-      if (callback === null) {
-        this.#error(STATUS_CODE_NOT_FOUND);
-        return;
-      }
+    const { callback, param } = urlHandler;
+    if (callback === null) {
+      return this.#error(STATUS_CODES.NOT_FOUND);
+    }
 
-      let action;
-      // OK
-      this.#response.setHeader("Content-Type", "text/plain");
+    let action;
+    // OK
+    this.#response.setHeader("Content-Type", "text/plain");
 
-      if (typeof callback === 'function') {
-        action = () => (param === null ? callback(postData) : callback(param, postData));
-      } else {
-        action = () => (
-            param === null ? callback.controller[callback.action](postData) : callback.controller[callback.action](param, postData)
-        )
+    if (typeof callback === 'function') {
+      action = () => (param === null ? callback(postData) : callback(param, postData));
+    } else {
+      if (callback.controller[callback.action] === undefined) {
+        return this.#error(STATUS_CODES.NOT_FOUND);
       }
+      action = () => (
+          param === null ? callback.controller[callback.action](postData) : callback.controller[callback.action](param, postData)
+      )
+    }
 
-      try {
-        this.#end(SUCCESS_STATUS_CODES[this.#request.method], JSON.stringify(await action()))
-      } catch(err) {
-        this.#end(STATUS_CODE_ERROR, err.message)
-      }
+    const resp = {};
+    try {
+      resp.code = SUCCESS_STATUS_CODES[this.#request.method];
+      await action().then(result => {
+        resp.contents = JSON.stringify(result);
+      });
+    } catch(err) {
+      resp.code = STATUS_CODES.ERROR;
+      resp.contents = err.message;
+    }
+
+    this.#end(resp.code, resp.contents);
   }
 
   /**

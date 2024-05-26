@@ -5,6 +5,7 @@ export default class CrudController {
     this.model = model;
   }
 
+
   /**
    * Create item
    */
@@ -16,22 +17,25 @@ export default class CrudController {
    * Get item by ID
    */
   show(id) {
-    return this.model.showOrFail(id);
+    return this.model.findOrFail(id);
   }
 
   /**
    * Update item by ID
    */
-  update(id, data) {
-    this.model.updateOrFail(id, data);
-    return this.model.findByPk(id);
+  async update(id, data) {
+    await this.model.updateOrFail(id, data);
+
+    return {
+      result: "The model successfully updated",
+    }
   }
 
   /**
-   * Delete item
+   * Delete item by ID
    */
-  destroy(id) {
-    this.model.destroyOrFail(id);
+  async destroy(id) {
+    await this.model.destroyOrFail(id);
   }
 
   /**
