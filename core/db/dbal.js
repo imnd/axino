@@ -4,6 +4,7 @@ import pgsql from "pgsql";
 import { isObject } from "../../components/helpers.js";
 
 export default class DBAL {
+  _instance;
   #connection;
   #config;
 
@@ -24,31 +25,29 @@ export default class DBAL {
       database: process.env.DB_NAME,
     };
 
-    if (params === undefined) {
-      return;
+    if (params !== undefined) {
+      this.setParams(params);
+    }
+  }
+
+  // singleton
+  static getInstance(params) {
+    if (this._instance === undefined) {
+      this._instance = new this();
     }
 
+    this._instance.setParams(params);
+
+    return this._instance;
+  }
+
+  setParams(params) {
     if (params.table !== undefined) {
       this.#table = params.table;
     }
 
     if (params.pk !== undefined) {
       this.#pk = params.pk;
-    }
-  }
-
-  async #connect() {
-    if (this.#connection !== undefined) {
-      return;
-    }
-
-    switch (process.env.DB_DIALECT) {
-      case "mysql":
-        this.#connection = await mysql.createConnection(this.#config);
-        break;
-      case "pgsql":
-        this.#connection = await pgsql.createConnection(this.#config);
-        break;
     }
   }
 
@@ -107,9 +106,9 @@ export default class DBAL {
     return where
   }
 
-  #setWhere(where) {
+  #setQueryConditions(where) {
     if (where !== undefined) {
-      this.where(where);
+      this.#where = this.#prepareKeyValues(where);
     }
 
     if (this.#where !== undefined) {
@@ -165,6 +164,21 @@ export default class DBAL {
     return valuesArr.join(",");
   }
 
+  async #connect() {
+    if (this.#connection !== undefined) {
+      return;
+    }
+
+    switch (process.env.DB_DIALECT) {
+      case "mysql":
+        this.#connection = await mysql.createConnection(this.#config);
+        break;
+      case "pgsql":
+        this.#connection = await pgsql.createConnection(this.#config);
+        break;
+    }
+  }
+
   async create(values, table) {
     table ??= this.#table
 
@@ -193,7 +207,7 @@ export default class DBAL {
   async findAll(where) {
     this
       .query(`SELECT ${this.#select} FROM ${this.#table}`)
-      .#setWhere(where);
+      .#setQueryConditions(where);
 
     await this.#connect();
     const [ result, ] = await this.#connection.execute(this.#query, this.#params);
@@ -205,7 +219,7 @@ export default class DBAL {
 
     return await this
       .query(`DELETE FROM ${table}`)
-      .#setWhere(this.#getWhere(where))
+      .#setQueryConditions(this.#getWhere(where))
       .execute();
   }
 
@@ -213,7 +227,7 @@ export default class DBAL {
     await this.#connect();
     this
       .query(query ?? this.#query)
-      .#setWhere();
+      .#setQueryConditions();
 
     const [ result, ] = await this.#connection.execute(this.#query);
     return result;

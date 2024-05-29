@@ -1,21 +1,31 @@
 import DBAL from "./dbal.js";
-import { camelToKebab } from "../../components/helpers.js";
+import { camelToSnake } from "../../components/helpers.js";
 import { Http404Error } from "../http-error.js";
 
 export default class Model {
-  #db;
-  #table;
-  #pk = "id";
-
+  _db;
+  _table;
+  _pk = "id";
   _attributes = {};
 
   constructor() {
-    if (this.#table === undefined) {
-      this.#table = camelToKebab(this.constructor.name);
+    if (this._table === undefined) {
+      this._table = camelToSnake(this.constructor.name);
     }
-    this.#db = new DBAL({
-      table: this.#table,
-      pk: this.#pk,
+
+    this._db = DBAL.getInstance({
+      table: this._table,
+      pk: this._pk,
+    });
+
+    return new Proxy(this, {
+      get: function(model, field) {
+        if (field in model._attributes) {
+          return model._attributes[field];
+        }
+
+        return model[field];
+      }
     });
   }
 
@@ -30,18 +40,18 @@ export default class Model {
 
   static async create(data) {
     const model = new this();
-    const result = await model.#db.create(data);
+    const result = await model._db.create(data);
 
     return model
       .setAttributes({
-        ...{ [model.#pk]: result.insertId },
+        ...{ [model._pk]: result.insertId },
         ...data
       });
   }
 
   static async find(params) {
     const model = new this();
-    const result = await model.#db.find(params);
+    const result = await model._db.find(params);
     if (result === undefined) {
       return undefined;
     }
@@ -58,7 +68,7 @@ export default class Model {
   }
 
   static async findAll(where) {
-    const result = await (new this()).#db.findAll(where);
+    const result = await (new this())._db.findAll(where);
 
     const models = [];
     if (result !== undefined) {
@@ -72,16 +82,10 @@ export default class Model {
 
   static async update(id, values) {
     const model = new this();
-    model.#db
-      .update(values);
 
-    model.#db
+    await model._db
       .update(values)
-      .where({ [model.#pk]: id });
-
-    await model.#db
-      .update(values)
-      .where({ [model.#pk]: id })
+      .where({ [model._pk]: id })
       .execute()
     ;
 
@@ -94,7 +98,7 @@ export default class Model {
   }
 
   static async destroy(id) {
-    return await (new this()).#db.destroy(id);
+    return await (new this())._db.destroy(id);
   }
 
   static async destroyOrFail(id) {

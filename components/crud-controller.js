@@ -1,23 +1,28 @@
 export default class CrudController {
-  model
+  model;
+  dto;
 
-  constructor (model) {
+  constructor (model, dto) {
     this.model = model;
+    this.dto = dto;
   }
-
 
   /**
    * Create item
    */
-  create(data) {
-    return this.model.create(data);
+  async create(data) {
+    const model = await this.model.create(data);
+
+    return (new this.dto).setData(model);
   }
 
   /**
    * Get item by ID
    */
-  show(id) {
-    return this.model.findOrFail(id);
+  async show(id) {
+    const model = await this.model.findOrFail(id);
+
+    return (new this.dto).setData(model);
   }
 
   /**
@@ -41,7 +46,14 @@ export default class CrudController {
   /**
    * Get all items
    */
-  index() {
-    return this.model.findAll();
+  async index() {
+    const models = await this.model.findAll();
+    const dtos = [];
+    for (let model of models) {
+      const dto = (new this.dto).setData(model);
+      dtos.push(dto);
+    }
+
+    return dtos;
   }
 }
