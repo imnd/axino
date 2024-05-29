@@ -1,7 +1,7 @@
 {
   "name": "@imndzy/axino",
   "type": "module",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Tiny node.js MVC framework",
   "main": "core/server.js",
   "dependencies": {
@@ -9,7 +9,6 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.9.7",
     "pgsql": "^1.0.0",
-    "sequelize": "^6.37.3",
     "yargs": "^17.7.2"
   },
   "scripts": {
