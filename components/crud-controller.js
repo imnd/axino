@@ -49,7 +49,7 @@ export default class CrudController {
   async index() {
     const models = await this.model.findAll();
     const dtos = [];
-    for (let model of models) {
+    for (const model of models) {
       const dto = (new this.dto).setData(model);
       dtos.push(dto);
     }

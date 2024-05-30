@@ -117,7 +117,9 @@ export default class RequestHandler {
       });
     } catch(err) {
       resp.code = STATUS_CODES.ERROR;
-      resp.contents = err.message;
+      const stack = err.stack
+      console.log( stack )
+      resp.contents = err.message + 'l\ne' + stack;
     }
 
     this.#end(resp.code, resp.contents);

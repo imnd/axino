@@ -1,92 +1,29 @@
-import loadEnv from "../load-env.js";
-import mysql from 'mysql2/promise';
-import pgsql from "pgsql";
 import { isObject } from "../../components/helpers.js";
+import Connection from "./connection.js";
 
 export default class DBAL {
-  _instance;
-  #connection;
-  #config;
-
   #pk = "id";
   #table;
+
   #query;
-  #params;
-  #where;
-  #select = "*";
+  #fields = "";
+  #where = "";
+  #joins = [];
+  #orders = []
+  #limit;
+  #offset;
+  #groupBy;
 
   constructor(params) {
-    loadEnv();
-
-    this.#config = {
-      host: process.env.DB_HOST,
-      user: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    };
-
-    if (params !== undefined) {
-      this.setParams(params);
+    if (params === undefined) {
+      return;
     }
-  }
-
-  // singleton
-  static getInstance(params) {
-    if (this._instance === undefined) {
-      this._instance = new this();
-    }
-
-    this._instance.setParams(params);
-
-    return this._instance;
-  }
-
-  setParams(params) {
     if (params.table !== undefined) {
       this.#table = params.table;
     }
-
     if (params.pk !== undefined) {
       this.#pk = params.pk;
     }
-  }
-
-  select(fields) {
-    this.#select = this.#prepareSelect(fields);
-
-    return this;
-  }
-
-  table(table) {
-    this.#table = table;
-
-    return this;
-  }
-
-  from(table) {
-    this.#table = table;
-
-    return this;
-  }
-
-  where(where) {
-    if (where !== undefined) {
-      this.#where = this.#prepareKeyValues(where);
-    }
-
-    return this;
-  }
-
-  query(sql) {
-    this.#query = sql;
-
-    return this;
-  }
-
-  update(values, table) {
-    table ??= this.#table
-
-    return this.query(`UPDATE ${table} SET ${this.#prepareKeyValues(values)}`);
   }
 
   #getWhere(params) {
@@ -99,7 +36,7 @@ export default class DBAL {
       where = params
     } else {
       where = {
-        [this.#pk]: params,
+        [`${this.#table}.${this.#pk}`]: params,
       }
     }
 
@@ -111,20 +48,30 @@ export default class DBAL {
       this.#where = this.#prepareKeyValues(where);
     }
 
-    if (this.#where !== undefined) {
+    if (this.#where !== "") {
       this.#query += ` WHERE ${this.#where}`;
-      this.#where = undefined;
+      this.#where = "";
     }
 
     return this;
   }
 
-  #prepareSelect(fields) {
-    fields ??= ["*"]
-
-    if (!Array.isArray(fields)) {
-      fields = [fields];
+  #prepareSelect(_fields, table) {
+    if (!Array.isArray(_fields)) {
+      _fields = [_fields];
     }
+    if (_fields.length === 0) {
+      return [];
+    }
+
+    const fields = [ ..._fields ];
+
+    table ??= this.#table;
+
+    for (const ind in fields) {
+      fields[ind] = `${table}.${fields[ind]} as ${table}_${fields[ind]}`
+    }
+
     return fields.join(",");
   }
 
@@ -133,9 +80,21 @@ export default class DBAL {
       return "";
     }
 
-    let valuesArr = [];
+    const valuesArr = [];
     for (const key in values) {
-      valuesArr.push(`${key}="${values[key]}"`);
+      let operator = "=";
+      let value = values[key];
+      let firstSymbol = value.substring(0, 1);
+      if (firstSymbol === "<" || firstSymbol === ">") {
+        value = value.substring(1);
+        operator = firstSymbol;
+      }
+      let secondSymbol = value.substring(0, 1);
+      if (secondSymbol === "=") {
+        value = value.substring(1);
+        operator += "=";
+      }
+      valuesArr.push(`${key}${operator}"${value}"`);
     }
     return valuesArr.join(",");
   }
@@ -164,54 +123,158 @@ export default class DBAL {
     return valuesArr.join(",");
   }
 
-  async #connect() {
-    if (this.#connection !== undefined) {
-      return;
+  #joinQuery(join) {
+    const { table, key } = join;
+    return ` JOIN ${table} ON ${table}.${key} = ${this.#table}.${this.#pk}`;
+  }
+
+  #orderQuery(orderBy) {
+    let { field, order, table } = orderBy;
+    field ??= this.#pk
+    table ??= this.#table
+    order ??= "ASC";
+
+    return ` ${table}.${field} ${order}`;
+  }
+
+  async #execute() {
+    this.#flush();
+    const connection = await Connection.getInstance().getConnection();
+    const [ result, ] = await connection.execute(this.#query);
+
+    return result;
+  }
+
+  #flush() {
+    this.#joins = [];
+    this.#orders = [];
+    this.#fields = "";
+    this.#where = "";
+  }
+
+  join(join) {
+    this.#joins = join;
+
+    return this;
+  }
+
+  addJoin(join) {
+    this.#joins.push(join);
+
+    return this;
+  }
+
+  select(fields, table) {
+    const preparedSelect = this.#prepareSelect(fields, table);
+
+    if (this.#fields !== "" && preparedSelect !== "") {
+      this.#fields += ",";
     }
 
-    switch (process.env.DB_DIALECT) {
-      case "mysql":
-        this.#connection = await mysql.createConnection(this.#config);
-        break;
-      case "pgsql":
-        this.#connection = await pgsql.createConnection(this.#config);
-        break;
+    this.#fields += preparedSelect
+
+    return this;
+  }
+
+  table(table) {
+    return this.from(table);
+  }
+
+  from(table) {
+    this.#table = table;
+
+    return this;
+  }
+
+  where(where) {
+    if (where !== undefined) {
+      this.#where = this.#prepareKeyValues(where);
     }
+
+    return this;
+  }
+
+  orderBy(field, order) {
+    this.#orders.push({ field, order });
+
+    return this;
+  }
+
+  limit(limit, offset) {
+    this.#limit = limit;
+    this.#offset = offset;
+
+    return this;
+  }
+
+  groupBy(field) {
+    this.#groupBy = field;
+
+    return this;
+  }
+
+  query(sql, append) {
+    if (append) {
+      this.#query += sql;
+    } else {
+      this.#query = sql;
+    }
+
+    return this;
+  }
+
+  update(values, table) {
+    table ??= this.#table
+
+    return this.query(`UPDATE ${table} SET ${this.#prepareKeyValues(values)}`);
+  }
+
+  // Client code
+
+  async execute(query) {
+    return await this
+      .query(query ?? this.#query)
+      .#setQueryConditions()
+      .#execute();
   }
 
   async create(values, table) {
     table ??= this.#table
 
     return await this
-      .query(`
+      .execute(`
         INSERT INTO ${table} (${this.#prepareKeys(values)})
         VALUES (${this.#prepareValues(values)})
-      `)
-      .execute();
+      `);
   }
 
-  async find(params, select) {
-    select ??= this.#select
-
-    const result = await this
-      .select(select)
+  async find(params) {
+    return await this
       .where(this.#getWhere(params))
-      .findAll()
-    ;
-
-    if (result.length) {
-      return result[0];
-    }
+      .findAll();
   }
 
   async findAll(where) {
-    this
-      .query(`SELECT ${this.#select} FROM ${this.#table}`)
-      .#setQueryConditions(where);
+    this.query(`SELECT ${this.#fields ?? "*"} FROM ${this.#table}`);
 
-    await this.#connect();
-    const [ result, ] = await this.#connection.execute(this.#query, this.#params);
-    return result;
+    if (this.#joins.length) {
+      for (const join of this.#joins) {
+        this.query(this.#joinQuery(join), true);
+      }
+    }
+
+    this.#setQueryConditions(where);
+
+    if (this.#orders.length) {
+      this.query(" ORDER BY", true);
+      let orderQueries = [];
+      for (const order of this.#orders) {
+        orderQueries.push(this.#orderQuery(order));
+      }
+      this.query(orderQueries.join(","), true);
+    }
+
+    return this.#execute();
   }
 
   async destroy(where, table) {
@@ -221,15 +284,5 @@ export default class DBAL {
       .query(`DELETE FROM ${table}`)
       .#setQueryConditions(this.#getWhere(where))
       .execute();
-  }
-
-  async execute(query) {
-    await this.#connect();
-    this
-      .query(query ?? this.#query)
-      .#setQueryConditions();
-
-    const [ result, ] = await this.#connection.execute(this.#query);
-    return result;
   }
 }
