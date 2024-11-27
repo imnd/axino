@@ -12,7 +12,7 @@ import routes from "./../../bookkeep-axino/routes.js";
 const parsedRoutes = parseRoutes(routes);
 
 export default {
-  go: () => {
+  start: () => {
     const port = Yargs.port ?? process.env.PORT;
     const hostname = process.env.HOSTNAME;
     createServer(async (req, res) => {

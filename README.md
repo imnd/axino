@@ -7,7 +7,7 @@ Uses sequelize as DBAL
 ## Installation
 
 ```bash
-$ npm i @imnd/axino
+$ npm i @imndzy/axino
 ```
 
 ## Usage
@@ -15,8 +15,8 @@ $ npm i @imnd/axino
 Create file index.js at root directory with such code:
 
 ```code
-import { go } from '@imnd/axino';
-go();
+import app from '@imndzy/axino';
+app.start();
 ```
 
 Create folder domains at root directory with subfolders containing files row-row-model.js, controller.js (and view.js, if your app is not REST API)
