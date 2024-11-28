@@ -8,8 +8,10 @@ export default class DBAL {
   #query;
   #fields = "";
   #where = "";
+  #belongsToJoins = [];
+  #hasManyJoins = [];
   #joins = [];
-  #orders = []
+  #orders = [];
   #limit;
   #offset;
   #groupBy;
@@ -128,6 +130,11 @@ export default class DBAL {
     return ` JOIN ${table} ON ${table}.${key} = ${this.#table}.${this.#pk}`;
   }
 
+  #downJoinQuery(join) {
+    const { table, key } = join;
+    return ` JOIN ${table} ON ${this.#table}.${key} = ${table}.${this.#pk}`;
+  }
+
   #orderQuery(orderBy) {
     let { field, order, table } = orderBy;
     field ??= this.#pk
@@ -137,14 +144,6 @@ export default class DBAL {
     return ` ${table}.${field} ${order}`;
   }
 
-  async #execute() {
-    this.#flush();
-    const connection = await Connection.getInstance().getConnection();
-    const [ result, ] = await connection.execute(this.#query);
-
-    return result;
-  }
-
   #flush() {
     this.#joins = [];
     this.#orders = [];
@@ -152,14 +151,26 @@ export default class DBAL {
     this.#where = "";
   }
 
-  join(join) {
-    this.#joins = join;
+  async #execute() {
+    this.#flush();
+    const connection = await Connection.getInstance().getConnection();
+
+
+    const [ result, ] = await connection.execute(this.#query);
+
+    return result;
+  }
+
+  // Client code
+
+  addHasManyJoin(join) {
+    this.#hasManyJoins.push(join);
 
     return this;
   }
 
-  addJoin(join) {
-    this.#joins.push(join);
+  addBelongsToJoin(join) {
+    this.#belongsToJoins.push(join);
 
     return this;
   }
@@ -229,8 +240,6 @@ export default class DBAL {
     return this.query(`UPDATE ${table} SET ${this.#prepareKeyValues(values)}`);
   }
 
-  // Client code
-
   async execute(query) {
     return await this
       .query(query ?? this.#query)
@@ -257,8 +266,14 @@ export default class DBAL {
   async findAll(where) {
     this.query(`SELECT ${this.#fields ?? "*"} FROM ${this.#table}`);
 
-    if (this.#joins.length) {
-      for (const join of this.#joins) {
+    if (this.#hasManyJoins.length) {
+      for (const join of this.#hasManyJoins) {
+        this.query(this.#downJoinQuery(join), true);
+      }
+    }
+
+    if (this.#belongsToJoins.length) {
+      for (const join of this.#belongsToJoins) {
         this.query(this.#joinQuery(join), true);
       }
     }

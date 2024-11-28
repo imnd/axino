@@ -1,5 +1,5 @@
 import DBAL from "./dbal.js";
-import { camelToSnake, clone } from "../../components/helpers.js";
+import { camelToSnake } from "../../components/helpers.js";
 import { Http404Error } from "../http-error.js";
 
 export default class Model {
@@ -32,6 +32,10 @@ export default class Model {
 
   static _instance;
 
+  /**
+   * Singleton object
+   * @returns {Model}
+   */
   static getInstance() {
     if (this._instance === undefined) {
       this._instance = new this();
@@ -81,6 +85,26 @@ export default class Model {
     return this;
   }
 
+  static with(relationName) {
+    const _this = this.getInstance();
+
+    _this._with.push(relationName);
+
+    const relation = _this[relationName];
+
+    if (relation) {
+      const { type, model, key } = relation;
+      const table = (new model)._table;
+      if (type === "hasMany") {
+        _this._db.addHasManyJoin({ table, key });
+      } else if (type === "belongsTo") {
+        _this._db.addBelongsToJoin({ table, key });
+      }
+    }
+
+    return this;
+  }
+
   static flushWith() {
     const _this = this.getInstance();
     _this._with = [];
@@ -103,24 +127,6 @@ export default class Model {
 
   static orderBy(field, order, table) {
     this.getInstance()._db.orderBy(field, order, table);
-  }
-
-  static with(relationName) {
-    const _this = this.getInstance();
-
-    _this._with.push(relationName);
-
-    const relation = _this[relationName];
-
-    if (relation) {
-      const { type, model, key } = relation;
-      const table = (new model)._table;
-      if (type === "hasMany") {
-        _this._db.addJoin({ table, key });
-      }
-    }
-
-    return this;
   }
 
   static async create(data) {
@@ -186,8 +192,7 @@ export default class Model {
         });
 
         models.push(
-          clone(this.getInstance())
-            .setAttributes(subset[0])
+            (new this()).setAttributes(subset[0])
             .setRelations(subset)
         );
       }

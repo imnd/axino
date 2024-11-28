@@ -2,7 +2,6 @@ import mysql from "mysql2/promise";
 import pgsql from "pgsql";
 import loadEnv from "../load-env.js";
 
-// singleton object
 export default class Connection {
   _instance;
 
@@ -31,6 +30,10 @@ export default class Connection {
     }
   }
 
+  /**
+   * Singleton object
+   * @returns {Connection}
+   */
   static getInstance() {
     if (this._instance === undefined) {
       this._instance = new this();
